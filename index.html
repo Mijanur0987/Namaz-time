@@ -3,680 +3,893 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>নামাজের সময়সূচি</title>
+    <title>নামাজের সময়সূচি - ইউজার অ্যাপ</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Hind Siliguri -->
-    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Google Font: Hind Siliguri -->
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-page: #f4f7f9;
+            --bg-card: #ffffff;
+            --highlight: #26a69a;
+            --text-color: #333333;
+        }
         body {
             font-family: 'Hind Siliguri', sans-serif;
-            background-color: #f4f7f9;
-            color: #333333;
+            background-color: var(--bg-page);
+            color: var(--text-color);
+            transition: background-color 0.3s;
+        }
+        .app-container {
+            max-width: 450px;
+            margin: auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-card);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
         }
         .card {
-            background-color: #ffffff;
-            transition: all 0.3s ease;
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .highlighted-card {
-            background-color: #26a69a; /* Highlight color */
+        .card:hover {
+            box-shadow: 0 6px 10px -1px rgba(0, 0, 0, 0.15);
+        }
+        .highlight-card {
+            background-color: var(--highlight);
             color: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        .highlighted-card .text-primary {
-            color: white !important;
+        .progress-bar {
+            height: 4px;
+            border-radius: 9999px;
+            background-color: rgba(255, 255, 255, 0.3);
+            overflow: hidden;
         }
-        .nav-link.active {
-            color: #26a69a;
+        .progress-bar-fill {
+            height: 100%;
+            background-color: white;
+            transition: width 1s linear;
         }
-        #compass-needle {
-            transition: transform 0.1s linear;
-            will-change: transform;
-        }
-        #qibla-arrow {
-            /* Fixed Qibla direction for visualization (269 deg offset from North) */
+        #qibla-needle {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 0;
-            height: 0;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-bottom: 30px solid #ef4444; /* Red arrow */
-            transform: translate(-50%, -100%) rotate(269deg);
-            transform-origin: 50% 100%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            transition: transform 0.1s linear;
+        }
+        #qibla-needle svg {
+            width: 100%;
+            height: 100%;
+        }
+        .nav-button.active {
+            color: var(--highlight);
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body>
 
-    <!-- Custom Message Box/Modal -->
-    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
-        <div class="bg-white rounded-xl p-6 shadow-2xl max-w-sm w-full">
-            <h3 id="modal-title" class="text-xl font-bold mb-3 text-red-600">ত্রুটি</h3>
-            <p id="modal-body" class="mb-4 text-gray-700"></p>
-            <button onclick="closeModal()" class="w-full bg-26a69a hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition">বন্ধ করুন</button>
+<div class="app-container">
+    <!-- Message Box/Modal -->
+    <div id="message-box" class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+            <h3 id="message-title" class="text-lg font-bold mb-2 text-gray-800"></h3>
+            <p id="message-text" class="mb-4 text-gray-600"></p>
+            <button onclick="hideMessage()" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 rounded-lg transition duration-200">ঠিক আছে</button>
         </div>
     </div>
 
     <!-- 1. Authentication Screen -->
-    <div id="auth-screen" class="p-6 flex-grow flex flex-col justify-center items-center">
-        <div class="max-w-md w-full p-8 card rounded-2xl shadow-xl">
-            <h2 id="auth-header" class="text-3xl font-bold text-center mb-6 text-[#26a69a]">লগইন করুন</h2>
-            
+    <div id="auth-screen" class="p-8 w-full flex flex-col justify-center items-center flex-grow">
+        <div id="auth-form-container" class="w-full max-w-sm">
+            <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">প্রবেশ করুন</h1>
+
+            <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="w-full bg-gray-200 text-gray-700 py-2 rounded-lg mb-6 transition hover:bg-gray-300">
+                সাইন আপ করতে ক্লিক করুন
+            </button>
+
             <!-- Login Form -->
-            <form id="login-form" class="space-y-4">
-                <input type="email" id="login-email" placeholder="ইমেইল" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-[#26a69a] focus:border-[#26a69a]">
-                <input type="password" id="login-password" placeholder="পাসওয়ার্ড" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-[#26a69a] focus:border-[#26a69a]">
-                <button type="submit" class="w-full bg-[#26a69a] hover:bg-teal-700 text-white font-bold py-3 rounded-lg transition duration-200">লগইন</button>
+            <form id="login-form" onsubmit="event.preventDefault(); handleLogin()" class="space-y-4">
+                <input type="email" id="login-email" placeholder="ইমেইল" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500">
+                <input type="password" id="login-password" placeholder="পাসওয়ার্ড" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500">
+                <button type="submit" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 rounded-lg transition duration-200">লগইন করুন</button>
             </form>
 
-            <!-- Signup Form (Hidden initially) -->
-            <form id="signup-form" class="space-y-4 hidden">
-                <input type="text" id="signup-name" placeholder="নাম" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-[#26a69a] focus:border-[#26a69a]">
-                <input type="email" id="signup-email" placeholder="ইমেইল" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-[#26a69a] focus:border-[#26a69a]">
-                <input type="password" id="signup-password" placeholder="পাসওয়ার্ড" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-[#26a69a] focus:border-[#26a69a]">
-                <button type="submit" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 rounded-lg transition duration-200">নিবন্ধন করুন</button>
+            <!-- Signup Form (Initially hidden) -->
+            <form id="signup-form" onsubmit="event.preventDefault(); handleSignup()" class="space-y-4 hidden">
+                <input type="text" id="signup-name" placeholder="নাম" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500">
+                <input type="email" id="signup-email" placeholder="ইমেইল" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500">
+                <input type="password" id="signup-password" placeholder="পাসওয়ার্ড" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500">
+                <button type="submit" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 rounded-lg transition duration-200">সাইন আপ করুন</button>
             </form>
-
-            <p class="text-center mt-6 text-sm">
-                <button id="toggle-auth" class="text-[#26a69a] hover:underline transition">নিবন্ধন করতে এখানে ক্লিক করুন</button>
-            </p>
         </div>
     </div>
 
     <!-- 2. Main Application Screen -->
-    <div id="main-app-screen" class="hidden flex-grow flex flex-col">
-        <header class="bg-[#26a69a] text-white p-4 shadow-md">
-            <h1 class="text-xl font-bold text-center">নামাজের সময়সূচি</h1>
-            <p id="current-date" class="text-sm text-center opacity-90 mt-1"></p>
-        </header>
+    <div id="main-app-screen" class="w-full flex-grow flex flex-col hidden">
+        <div class="flex-grow overflow-y-auto p-4">
+            <!-- Header -->
+            <header class="text-center py-4 mb-4 bg-teal-600 text-white rounded-xl shadow-lg">
+                <h1 class="text-2xl font-bold">নামাজের সময়সূচি</h1>
+                <p id="current-date" class="text-sm mt-1"></p>
+            </header>
 
-     <!-- [Adsterra Ad Unit: 468x60 Banner] -->
-        <div class="p-4 text-center bg-f4f7f9">
-            <div class="mx-auto flex justify-center items-center bg-white rounded-lg shadow-inner border border-gray-200" 
-                 style="max-width: 468px; min-height: 60px;">
-                <!-- Adsterra Code Starts Here -->
-                <script type="text/javascript">
-                	atOptions = {
-                		'key' : 'e700f1578f7a44cc81c92edb46fdd32f',
-                		'format' : 'iframe',
-                		'height' : 60,
-                		'width' : 468,
-                		'params' : {}
-                	};
-                </script>
-                <script type="text/javascript" src="//www.highperformanceformat.com/e700f1578f7a44cc81c92edb46fdd32f/invoke.js"></script>
-                <!-- Adsterra Code Ends Here -->
+            <!-- Adsterra Banner Ad Placement -->
+            <div id="ad-banner" class="flex justify-center p-2 mb-4">
+                <div class="w-full max-w-sm sm:max-w-md">
+                    <!-- Your Adsterra Code Starts Here -->
+                    <script type="text/javascript">
+                        var atOptions = {
+                            'key' : 'e700f1578f7a44cc81c92edb46fdd32f',
+                            'format' : 'iframe',
+                            'height' : 60,
+                            'width' : 468,
+                            'params' : {}
+                        };
+                    </script>
+                    <script type="text/javascript" src="//www.highperformanceformat.com/e700f1578f7a44cc81c92edb46fdd32f/invoke.js"></script>
+                    <!-- Your Adsterra Code Ends Here -->
+                </div>
             </div>
-        </div>
-        <!-- [END Adsterra Ad Unit] -->
-
-        <!-- Prayer Times List -->
-        <div id="prayer-times-list" class="p-4 space-y-3 overflow-y-auto flex-grow">
-            <!-- Prayer cards will be dynamically inserted here -->
-            <p id="loading-message" class="text-center text-gray-500 mt-8">সময়সূচি লোড হচ্ছে...</p>
-        </div>
-    </div>
-
-    <!-- 3. Qibla Compass Screen -->
-    <div id="qibla-screen" class="hidden flex-grow flex flex-col justify-center items-center p-6 text-center">
-        <h2 class="text-2xl font-bold mb-8 text-[#26a69a]">কিবলার দিক</h2>
-
-        <!-- Compass Container -->
-        <div id="compass-container" class="relative w-64 h-64 border-8 border-[#333333] rounded-full flex items-center justify-center shadow-2xl">
-            <div class="absolute inset-0 bg-white rounded-full"></div>
-            <!-- Compass Needle (Rotating Element) -->
-            <div id="compass-needle" class="absolute w-1 h-32 bg-red-600 rounded-full" style="transform-origin: 50% 100%; top: 0;">
-                <div class="w-full h-8 bg-red-800 rounded-t-full"></div>
-            </div>
-            <!-- North Marker -->
-            <div class="absolute top-0 text-red-600 font-bold text-lg -mt-5">N</div>
-            <!-- Fixed Qibla Arrow (269 deg offset from North) -->
-            <div id="qibla-arrow"></div>
-            <!-- Center Dot -->
-            <div class="w-3 h-3 rounded-full bg-gray-700 absolute"></div>
-        </div>
-        
-        <!-- Status Messages/Buttons -->
-        <div class="mt-8 w-full max-w-sm">
-            <button id="qibla-permission-btn" class="w-full bg-[#26a69a] hover:bg-teal-700 text-white font-bold py-3 rounded-lg transition duration-200">কম্পাস চালু করুন</button>
-            <p id="qibla-status" class="hidden mt-4 text-sm text-gray-600"></p>
-            <p id="qibla-device-heading" class="mt-4 text-lg font-mono hidden"></p>
-        </div>
-    </div>
-
-    <!-- Bottom Navigation Bar (Visible in main-app and qibla screens) -->
-    <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 hidden">
-        <div class="flex justify-around items-center h-16">
-            <button id="nav-times" class="nav-link active flex flex-col items-center p-2 text-sm text-gray-600 hover:text-[#26a69a]">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span>সময়সূচি</span>
-            </button>
-            <button id="nav-qibla" class="nav-link flex flex-col items-center p-2 text-sm text-gray-600 hover:text-[#26a69a]">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 15.172a4 4 0 01-5.656 0 4 4 0 01-5.656 0"></path></svg>
-                <span>কিবলা</span>
-            </button>
-            <button id="nav-logout" class="nav-link flex flex-col items-center p-2 text-sm text-gray-600 hover:text-red-500">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3v-10a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                <span>লগআউট</span>
-            </button>
-        </div>
-    </nav>
-
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // setLogLevel('Debug');
-
-        // --- GLOBAL SETUP (MANDATORY) ---
-        const firebaseConfig = {
-  apiKey: "AIzaSyAB1fAd_UScDKzjc71cPnWFmGESvh1csto",
-  authDomain: "namaz-app-92841.firebaseapp.com",
-  projectId: "namaz-app-92841",
-  storageBucket: "namaz-app-92841.firebasestorage.app",
-  messagingSenderId: "290642890691",
-  appId: "1:290642890691:web:03bd8de1789ad92afcb776",
-  measurementId: "G-FR2VC3DVD3"
-};
-
-        const config = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : JSON.stringify(firebaseConfig));
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
-
-        const app = initializeApp(config);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        
-        let userId = null;
-        let unsubscribePrayerTimes = null;
-        let currentWatchedDate = null; // Track the date currently being watched
-        let isCompassActive = false; // Track if the compass listener is active
+            <!-- End Adsterra Banner Ad Placement -->
 
 
-        // --- UTILITY FUNCTIONS (Bengali Formatting & Time) ---
-        function toBengaliNumber(n) {
-            return String(n).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
-        }
-
-        function showScreen(screenId) {
-            document.querySelectorAll('#auth-screen, #main-app-screen, #qibla-screen, #bottom-nav').forEach(el => el.classList.add('hidden'));
-            
-            if (screenId === 'auth') {
-                document.getElementById('auth-screen').classList.remove('hidden');
-                // Ensure compass listener is stopped when logging out or going to auth screen
-                stopCompassListener();
-            } else {
-                document.getElementById(screenId).classList.remove('hidden', 'flex-grow'); 
-                document.getElementById(screenId).classList.add('flex', 'flex-col'); 
-                document.getElementById('bottom-nav').classList.remove('hidden');
-            }
-
-            // Update active nav link
-            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active', 'text-[#26a69a]'));
-            if (screenId === 'main-app-screen') {
-                document.getElementById('nav-times').classList.add('active', 'text-[#26a69a]');
-                stopCompassListener(); // Stop compass if moving away from qibla screen
-            } else if (screenId === 'qibla-screen') {
-                document.getElementById('nav-qibla').classList.add('active', 'text-[#26a69a]');
-            }
-        }
-
-        function showMessage(title, body, isError = true) {
-            document.getElementById('modal-title').textContent = title;
-            document.getElementById('modal-title').classList.toggle('text-red-600', isError);
-            document.getElementById('modal-title').classList.toggle('text-[#26a69a]', !isError);
-            document.getElementById('modal-body').textContent = body;
-            document.getElementById('message-modal').classList.remove('hidden');
-            document.getElementById('message-modal').classList.add('flex');
-        }
-
-        window.closeModal = () => {
-            document.getElementById('message-modal').classList.add('hidden');
-            document.getElementById('message-modal').classList.remove('flex');
-        };
-
-        // --- AUTHENTICATION LOGIC (Omitted for brevity, unchanged) ---
-        
-        const loginForm = document.getElementById('login-form');
-        const signupForm = document.getElementById('signup-form');
-        const toggleAuthButton = document.getElementById('toggle-auth');
-        const authHeader = document.getElementById('auth-header');
-
-        toggleAuthButton.addEventListener('click', () => {
-            const isLogin = loginForm.classList.contains('hidden');
-            loginForm.classList.toggle('hidden');
-            signupForm.classList.toggle('hidden');
-            if (isLogin) {
-                authHeader.textContent = 'নিবন্ধন করুন';
-                toggleAuthButton.textContent = 'ইতিমধ্যে একটি অ্যাকাউন্ট আছে? লগইন করুন';
-            } else {
-                authHeader.textContent = 'লগইন করুন';
-                toggleAuthButton.textContent = 'নিবন্ধন করতে এখানে ক্লিক করুন';
-            }
-        });
-
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                showMessage("লগইন ব্যর্থ", `লগইন করতে সমস্যা হয়েছে: ${error.message}`, true);
-            }
-        });
-
-        signupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('signup-email').value;
-            const password = document.getElementById('signup-password').value;
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                showMessage("নিবন্ধন ব্যর্থ", `নিবন্ধন করতে সমস্যা হয়েছে: ${error.message}`, true);
-            }
-        });
-
-        document.getElementById('nav-logout').addEventListener('click', async () => {
-            if (unsubscribePrayerTimes) {
-                unsubscribePrayerTimes();
-            }
-            if (timerInterval) clearInterval(timerInterval);
-            currentWatchedDate = null; // Reset watched date
-            stopCompassListener(); // Ensure compass stops on logout
-            try {
-                await signOut(auth);
-                showMessage("সফল লগআউট", "আপনি সফলভাবে লগআউট করেছেন।", false);
-            } catch (error) {
-                console.error("Logout Error:", error);
-            }
-        });
-
-
-        // --- PRAYER TIME LOGIC ---
-
-        const prayerTimesMap = {
-            fajr: "ফজর",
-            sunrise: "সূর্যোদয়",
-            dhuhr: "যোহর",
-            asr: "আসর",
-            maghrib: "মাগরিব",
-            isha: "ঈশা"
-        };
-        const prayerKeys = Object.keys(prayerTimesMap);
-
-        let prayerTimesData = null;
-        let timerInterval = null;
-
-        function getTodayDateString() {
-            return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        }
-
-        function calculateNextPrayer() {
-            if (!prayerTimesData) return null;
-
-            const now = new Date();
-            let nextPrayer = null;
-            let minDiff = Infinity;
-            
-            // 1. Check for the next prayer today
-            for (const key of prayerKeys) {
-                const timeString = prayerTimesData[key];
-                if (!timeString || key === 'sunrise') continue; 
-
-                const [hour, minute] = timeString.split(':').map(Number);
-                const prayerTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
-                
-                const diff = prayerTime.getTime() - now.getTime();
-
-                if (diff > 0 && diff < minDiff) {
-                    minDiff = diff;
-                    nextPrayer = { key: key, time: prayerTime };
-                }
-            }
-
-            // 2. If no prayer found today, assume the next day's Fajr will be the next.
-            if (!nextPrayer) {
-                const tomorrow = new Date(now);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-
-                const nextFajrTimeStr = prayerTimesData.fajr;
-                if (nextFajrTimeStr) {
-                    const [hour, minute] = nextFajrTimeStr.split(':').map(Number);
-                    const nextFajrTime = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), hour, minute, 0, 0);
-                    minDiff = nextFajrTime.getTime() - now.getTime();
-                    nextPrayer = { key: 'fajr', time: nextFajrTime, isTomorrow: true };
-                }
-            }
-            
-            return nextPrayer;
-        }
-
-        function updatePrayerList(data) {
-            prayerTimesData = data;
-            const listEl = document.getElementById('prayer-times-list');
-            
-            // Clear all list content safely
-            listEl.innerHTML = ''; 
-            const loadingMessage = document.getElementById('loading-message');
-            if (loadingMessage) loadingMessage.classList.add('hidden');
-
-
-            if (!data) {
-                listEl.innerHTML = '<p class="text-center text-red-500 mt-8">আজকের নামাজের সময়সূচি পাওয়া যায়নি।</p>';
-                return;
-            }
-            // Update the display date based on the data being shown
-            document.getElementById('current-date').textContent = `${toBengaliNumber(new Date().toLocaleDateString('bn-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))}`;
-
-
-            const nextPrayerInfo = calculateNextPrayer();
-            
-            for (const [key, nameBn] of Object.entries(prayerTimesMap)) {
-                const timeStr = data[key] || "সময় নেই";
-                const isNext = nextPrayerInfo && nextPrayerInfo.key === key;
-                
-                const cardClass = isNext ? 'highlighted-card' : 'card shadow-md';
-                const timeClass = isNext ? 'text-white' : 'text-[#26a69a]';
-                
-                const card = document.createElement('div');
-                card.id = `prayer-card-${key}`;
-                card.className = `p-4 rounded-xl flex justify-between items-center relative overflow-hidden ${cardClass}`;
-                
-                // Construct the inner HTML with all necessary elements for safety
-                let innerHTML = `
-                    <div>
-                        <p class="text-lg font-bold ${isNext ? 'text-white' : 'text-gray-800'}">${nameBn}</p>
-                `;
-                if (isNext) {
-                    innerHTML += `<p id="countdown-${key}" class="text-sm font-light text-white opacity-90"></p>`;
-                }
-                innerHTML += `
+            <!-- Screens Container -->
+            <div id="screen-content">
+                <!-- A. Prayer Times Screen (Default View) -->
+                <div id="times-screen" class="space-y-3">
+                    <div id="current-prayer-info" class="card p-4 mb-4 highlight-card text-center">
+                        <p class="text-xl font-semibold mb-1">পরবর্তী নামাজ:</p>
+                        <p id="next-prayer-name" class="text-3xl font-bold"></p>
+                        <p id="countdown-timer" class="text-2xl mt-2 mb-3 font-mono"></p>
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-bar-fill" style="width: 0%;"></div>
+                        </div>
                     </div>
-                    <p class="text-3xl font-mono font-extrabold ${timeClass}">${toBengaliNumber(timeStr)}</p>
-                `;
-                if (isNext) {
-                    innerHTML += `<div id="progress-${key}" class="absolute bottom-0 left-0 h-1 rounded-b-xl bg-white bg-opacity-30"></div>`;
-                }
-                
-                card.innerHTML = innerHTML;
-                
-                listEl.appendChild(card);
-            }
 
-            if (timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(updateCountdown, 1000);
-            updateCountdown(); 
-        }
+                    <div id="prayer-times-list" class="space-y-3">
+                        <!-- Prayer time cards will be inserted here -->
+                    </div>
+                </div>
 
-        // --- FIX: DATE ROLLOVER CHECK & Countdown Update ---
-        function updateCountdown() {
-            // Check for date rollover first
-            const todayNow = getTodayDateString();
-            if (currentWatchedDate && todayNow !== currentWatchedDate) {
-                console.log("Date rollover detected. Re-fetching prayer times.");
-                // This re-fetch will clean up the old listener and start a new one for the new date
-                fetchPrayerTimes(true); 
-                return; 
-            }
-            
-            // --- Normal Countdown Logic ---
-            const nextPrayerInfo = calculateNextPrayer();
-            
-            // Clear previous highlights
-            document.querySelectorAll('.highlighted-card').forEach(el => {
-                // Remove highlight classes
-                el.classList.remove('highlighted-card');
-                el.classList.add('card', 'shadow-md');
-                
-                // Remove dynamic children (countdown and progress bar)
-                const key = el.id.replace('prayer-card-', '');
-                const c = document.getElementById(`countdown-${key}`);
-                const p = document.getElementById(`progress-${key}`);
-                
-                // SAFELY remove elements if they exist
-                if (c) c.remove();
-                if (p) p.remove();
-            });
+                <!-- B. Qibla Compass Screen -->
+                <div id="qibla-screen" class="hidden flex flex-col items-center justify-center p-8">
+                    <h2 class="text-2xl font-bold mb-6 text-center text-gray-700">কিবলা কম্পাস</h2>
+                    
+                    <button id="qibla-init-btn" onclick="initQibla()" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-8 rounded-lg transition duration-200 mb-6 shadow-md">
+                        কম্পাস চালু করুন
+                    </button>
 
+                    <div id="qibla-display" class="relative w-64 h-64 bg-gray-100 rounded-full border-4 border-gray-300 flex items-center justify-center shadow-inner">
+                        <p id="qibla-message" class="text-center text-gray-500 p-4 hidden">কম্পাস চলছে...</p>
+                        <div id="qibla-needle">
+                            <!-- Needle SVG (Red Triangle) -->
+                            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Base Circle -->
+                                <circle cx="50" cy="50" r="48" fill="#e5e7eb"/>
+                                <!-- Needle -->
+                                <polygon points="50,10 60,50 50,90 40,50" fill="#ef4444" stroke="#b91c1c" stroke-width="2"/>
+                                <!-- Center Pivot -->
+                                <circle cx="50" cy="50" r="5" fill="#333333"/>
+                                <!-- Qibla Mark (269 deg clockwise from North/Top) -->
+                                <text x="50" y="5" font-size="8" fill="#333333" text-anchor="middle">N</text>
+                                <text x="5" y="50" font-size="8" fill="#333333" dominant-baseline="middle">W</text>
+                                <text x="95" y="50" font-size="8" fill="#333333" dominant-baseline="middle" text-anchor="end">E</text>
+                                <text x="50" y="95" font-size="8" fill="#333333" text-anchor="middle" dominant-baseline="hanging">S</text>
+                            </svg>
+                        </div>
+                        <p class="absolute bottom-2 text-sm text-gray-500">কিবলা দিক: $269^\circ$ (পশ্চিম)</p>
+                    </div>
 
-            if (nextPrayerInfo) {
-                const now = new Date().getTime();
-                const nextTime = nextPrayerInfo.time.getTime();
-                const diff = nextTime - now;
+                    <div id="qibla-result" class="mt-4 text-center">
+                        <p id="orientation-info" class="text-lg text-gray-600"></p>
+                    </div>
+                </div>
 
-                const cardEl = document.getElementById(`prayer-card-${nextPrayerInfo.key}`);
-                
-                if (cardEl) {
-                    // 1. Re-apply highlight
-                    cardEl.classList.add('highlighted-card');
-                    cardEl.classList.remove('card', 'shadow-md');
+                <!-- C. Hadith Screen -->
+                <div id="hadith-screen" class="hidden p-4">
+                    <h2 class="text-3xl font-bold mb-4 text-center text-gray-800">আজকের হাদীস</h2>
+                    <div id="hadith-content-card" class="card p-6 min-h-[150px] flex flex-col justify-center">
+                        <p id="hadith-text" class="text-lg italic text-gray-700 leading-relaxed text-center">হাদীস লোড হচ্ছে...</p>
+                    </div>
+                    <!-- Audio Player for TTS -->
+                    <audio id="tts-audio" controls class="mt-4 w-full hidden"></audio>
+                    <button id="tts-btn" onclick="generateAndPlayTTS()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition duration-200 mt-4 shadow-md">
+                        হাদীসটি শুনুন
+                    </button>
+                    <div id="tts-loading" class="text-center text-teal-600 mt-2 hidden">অডিও তৈরি হচ্ছে...</div>
+                </div>
+            </div>
+        </div>
 
-                    const key = nextPrayerInfo.key;
+        <!-- Bottom Navigation Bar -->
+        <nav class="bg-white border-t border-gray-200 p-2 shadow-lg sticky bottom-0 z-10">
+            <div class="flex justify-around">
+                <button class="nav-button flex flex-col items-center p-2 text-gray-500 active" onclick="showScreen('times')">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span class="text-xs mt-1">সময়সূচি</span>
+                </button>
+                <button class="nav-button flex flex-col items-center p-2 text-gray-500" onclick="showScreen('qibla')">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v10m-8-10v8m-4-8h16M14 6h4M6 6h4"></path></svg>
+                    <span class="text-xs mt-1">কিবলা</span>
+                </button>
+                <button class="nav-button flex flex-col items-center p-2 text-gray-500" onclick="showScreen('hadith')">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18s-3.332.477-4.5 1.253"></path></svg>
+                    <span class="text-xs mt-1">হাদীস</span>
+                </button>
+                <button class="nav-button flex flex-col items-center p-2 text-red-500" onclick="handleLogout()">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    <span class="text-xs mt-1">লগআউট</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+</div>
 
-                    // 2. Define HTML fragments for dynamic elements
-                    const countdownHTML = `<p id="countdown-${key}" class="text-sm font-light text-white opacity-90"></p>`;
-                    const progressHTML = `<div id="progress-${key}" class="absolute bottom-0 left-0 h-1 rounded-b-xl bg-white bg-opacity-30"></div>`;
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    
+    // Set Firestore log level for debugging
+    setLogLevel('Debug');
 
-                    // 3. Ensure countdown and progress elements exist (Re-insert if they were removed in cleanup)
-                    let countdownEl = document.getElementById(`countdown-${key}`);
-                    let progressEl = document.getElementById(`progress-${key}`);
+    // --- GLOBAL VARIABLES ---
+    
+    // User-provided Firebase Config (Fallback)
+    const defaultFirebaseConfig = {
+        apiKey: "AIzaSyAB1fAd_UScDKzjc71cPnWFmGESvh1csto",
+        authDomain: "namaz-app-92841.firebaseapp.com",
+        projectId: "namaz-app-92841",
+        storageBucket: "namaz-app-92841.firebasestorage.app",
+        messagingSenderId: "290642890691",
+        appId: "1:290642890691:web:03bd8de1789ad92afcb776",
+        measurementId: "G-FR2VC3DVD3"
+    };
+    
+    // Prioritize the environment variable __firebase_config, using the user's config as a fallback.
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : defaultFirebaseConfig;
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-                    if (!countdownEl) {
-                        const divContent = cardEl.querySelector('div');
-                        if (divContent) {
-                            divContent.insertAdjacentHTML('beforeend', countdownHTML);
-                            countdownEl = document.getElementById(`countdown-${key}`); // Re-fetch after insert
-                        }
-                    }
-                    if (!progressEl) {
-                        cardEl.insertAdjacentHTML('beforeend', progressHTML);
-                        progressEl = document.getElementById(`progress-${key}`); // Re-fetch after insert
-                    }
+    // UI Elements
+    const authScreen = document.getElementById('auth-screen');
+    const mainAppScreen = document.getElementById('main-app-screen');
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const authToggleBtn = document.getElementById('auth-toggle-btn');
+    const prayerTimesList = document.getElementById('prayer-times-list');
+    const currentPrayerInfo = document.getElementById('current-prayer-info');
+    const nextPrayerNameEl = document.getElementById('next-prayer-name');
+    const countdownTimerEl = document.getElementById('countdown-timer');
+    const progressFillEl = document.getElementById('progress-fill');
+    
+    // Qibla Elements
+    const qiblaScreen = document.getElementById('qibla-screen');
+    const qiblaInitBtn = document.getElementById('qibla-init-btn');
+    const qiblaNeedle = document.getElementById('qibla-needle');
+    const qiblaMessage = document.getElementById('qibla-message');
+    const orientationInfoEl = document.getElementById('orientation-info');
+    
+    // Hadith Elements
+    const hadithScreen = document.getElementById('hadith-screen');
+    const hadithTextEl = document.getElementById('hadith-text');
+    const ttsAudio = document.getElementById('tts-audio');
+    const ttsBtn = document.getElementById('tts-btn');
+    const ttsLoading = document.getElementById('tts-loading');
 
-                    // 4. Manipulate content only if elements are successfully retrieved
-                    if (countdownEl && progressEl) {
-                        const seconds = Math.floor((diff / 1000) % 60);
-                        const minutes = Math.floor((diff / 1000 / 60) % 60);
-                        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    let db, auth;
+    let userId = null;
+    let prayerTimesData = null;
+    let countdownInterval = null;
+    const PRAYER_NAMES = ['fajr', 'sunrise', 'zohar', 'asr', 'magrib', 'isha'];
+    const BENGALI_NAMES = {
+        'fajr': 'ফজর',
+        'sunrise': 'সূর্যোদয়',
+        'zohar': 'যোহর',
+        'asr': 'আসর',
+        'magrib': 'মাগরিব',
+        'isha': 'ঈশা'
+    };
+    const QIBLA_BEARING = 269; // Fixed Qibla direction for Bangladesh (approx West-Northwest)
 
-                        const timeDiff = `${toBengaliNumber(hours).padStart(2, '০')}:${toBengaliNumber(minutes).padStart(2, '০')}:${toBengaliNumber(seconds).padStart(2, '০')}`;
-                        countdownEl.textContent = `বাকি: ${timeDiff}${nextPrayerInfo.isTomorrow ? ' (আগামীকাল)' : ''}`;
+    // --- UTILITY FUNCTIONS ---
 
-                        // Progress Bar Logic
-                        let startOfPeriodTime = now;
-                        const currentIndex = prayerKeys.indexOf(nextPrayerInfo.key);
-                        let previousKey = prayerKeys[currentIndex - 1];
+    // FIX: Attaching to window object to make it globally accessible from HTML onclick
+    window.showMessage = (title, text) => {
+        document.getElementById('message-title').textContent = title;
+        document.getElementById('message-text').textContent = text;
+        document.getElementById('message-box').classList.remove('hidden');
+        document.getElementById('message-box').classList.add('flex');
+    };
 
-                        if (currentIndex === 0) {
-                            previousKey = prayerKeys[prayerKeys.length - 1]; 
-                            startOfPeriodTime = new Date(nextTime - (24 * 60 * 60 * 1000)).getTime();
-                        } else if (previousKey && prayerTimesData[previousKey]) {
-                            const previousTimeStr = prayerTimesData[previousKey];
-                            const [pHour, pMinute] = previousTimeStr.split(':').map(Number);
-                            
-                            let start = new Date(nextPrayerInfo.time);
-                            start.setHours(pHour, pMinute, 0, 0);
+    // FIX: Attaching to window object to make it globally accessible from HTML onclick
+    window.hideMessage = () => {
+        document.getElementById('message-box').classList.add('hidden');
+        document.getElementById('message-box').classList.remove('flex');
+    };
 
-                            if (start.getTime() > nextTime) {
-                                start.setDate(start.getDate() - 1);
-                            }
-                            startOfPeriodTime = start.getTime();
-                        }
-                        
-                        const periodDuration = nextTime - startOfPeriodTime;
-                        const timeElapsed = now - startOfPeriodTime;
-                        const percentage = Math.min(100, (timeElapsed / periodDuration) * 100);
-                        
-                        progressEl.style.width = `${Math.max(0, percentage)}%`;
+    function toBengaliDigits(number) {
+        const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+        return number.toString().split('').map(digit => bnDigits[parseInt(digit)] || digit).join('');
+    }
+    
+    function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`; // YYYY-MM-DD for Firestore Doc ID
+    }
 
-                        // If timer reaches zero, force a refresh
-                        if (diff <= 0) {
-                            if (timerInterval) clearInterval(timerInterval);
-                            fetchPrayerTimes(true); 
-                        }
-                    }
-                }
-            } else {
-                // No next prayer found (all prayers passed), stop timer
-                if (timerInterval) clearInterval(timerInterval);
-            }
-        }
+    function formatDisplayDate(date) {
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        return date.toLocaleDateString('bn-BD', options);
+    }
+    
+    function parseTime(timeStr) {
+        if (!timeStr) return null;
+        const [h, m] = timeStr.split(':').map(Number);
+        const now = new Date();
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+        return date;
+    }
 
-        function fetchPrayerTimes(forceNewListener = false) {
-            const dateString = getTodayDateString();
-            
-            if (!forceNewListener && currentWatchedDate === dateString && unsubscribePrayerTimes) {
-                return; 
-            }
-            
-            if (unsubscribePrayerTimes) {
-                unsubscribePrayerTimes(); 
-            }
-            currentWatchedDate = dateString;
+    // --- FIREBASE SETUP & AUTH ---
 
-            const docRef = doc(db, `artifacts/${appId}/public/data/prayer_times`, dateString);
-            
-            unsubscribePrayerTimes = onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    updatePrayerList(docSnap.data());
-                } else {
-                    document.getElementById('prayer-times-list').innerHTML = '<p class="text-center text-red-500 mt-8">আজকের জন্য সময়সূচি সেট করা হয়নি।</p>';
-                    if (timerInterval) clearInterval(timerInterval);
-                    prayerTimesData = null;
-                }
-            }, (error) => {
-                showMessage("ডাটা লোড ত্রুটি", `সময়সূচি লোড করতে সমস্যা হয়েছে: ${error.message}`, true);
-                if (timerInterval) clearInterval(timerInterval);
-                prayerTimesData = null;
-            });
-        }
-
-
-        // --- QIBLA COMPASS LOGIC ---
-        const qiblaBtn = document.getElementById('qibla-permission-btn');
-        const QIBLA_DIRECTION = 269; 
-
-        // Function to safely stop the compass listener
-        function stopCompassListener() {
-            if (isCompassActive) {
-                window.removeEventListener('deviceorientation', handleOrientation);
-                isCompassActive = false;
-                console.log("Compass listener stopped.");
-            }
-        }
+    try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
         
-        function handleOrientation(event) {
-            // Check for existence of elements before manipulating their properties
-            const qiblaStatus = document.getElementById('qibla-status');
-            const deviceHeadingEl = document.getElementById('qibla-device-heading');
-            const compassNeedle = document.getElementById('compass-needle');
-
-            if (!qiblaStatus || !deviceHeadingEl || !compassNeedle) {
-                // If elements are null, the user has likely navigated away. Stop the listener.
-                stopCompassListener();
-                return;
-            }
-
-            let heading;
-            if (event.webkitCompassHeading !== undefined) {
-                heading = event.webkitCompassHeading;
-            } else if (event.alpha !== undefined) {
-                heading = 360 - event.alpha; 
-                if (window.screen.orientation && window.screen.orientation.angle) {
-                    heading = (heading + window.screen.orientation.angle) % 360;
-                } else if (window.orientation !== undefined) {
-                    heading = (heading + window.orientation) % 360; 
-                }
-            }
-
-            if (heading !== undefined) {
-                qiblaStatus.textContent = "কম্পাস সক্রিয়। ডিভাইসকে কিবলার দিকে নির্দেশ করুন।";
-                qiblaStatus.classList.remove('hidden');
-                
-                let needleRotation = QIBLA_DIRECTION - heading;
-                compassNeedle.style.transform = `rotate(${-heading}deg)`;
-                
-                deviceHeadingEl.textContent = `কিবলা: ${toBengaliNumber(QIBLA_DIRECTION.toFixed(0))}°, বর্তমান: ${toBengaliNumber(heading.toFixed(1))}°`;
-                deviceHeadingEl.classList.remove('hidden');
-            } else {
-                qiblaStatus.textContent = "কম্পাস ডেটা পাওয়া যায়নি।";
-            }
+        if (initialAuthToken) {
+            signInWithCustomToken(auth, initialAuthToken).catch(error => {
+                console.error("Custom token sign-in failed, signing in anonymously.", error);
+                signInAnonymously(auth);
+            });
+        } else {
+             signInAnonymously(auth);
         }
 
-        qiblaBtn.addEventListener('click', async () => {
-            const qiblaStatus = document.getElementById('qibla-status');
-            if (qiblaBtn) qiblaBtn.classList.add('hidden');
-            
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission === 'granted') {
-                        window.addEventListener('deviceorientation', handleOrientation);
-                        isCompassActive = true;
-                        if(qiblaStatus) qiblaStatus.textContent = "কম্পাস সক্রিয় হয়েছে।";
-                    } else {
-                        if(qiblaStatus) qiblaStatus.textContent = "দুঃখিত, কম্পাস ব্যবহারের পারমিশন দেওয়া হয়নি।";
-                        if(qiblaStatus) qiblaStatus.classList.remove('hidden');
-                    }
-                } catch (e) {
-                    console.error("Device orientation permission error:", e);
-                    if(qiblaStatus) qiblaStatus.textContent = "দুঃখিত, আপনার ডিভাইসে কম্পাস সাপোর্ট করে না অথবা পারমিশন দেওয়া হয়নি।";
-                    if(qiblaStatus) qiblaStatus.classList.remove('hidden');
-                }
-            } else {
-                if (window.DeviceOrientationEvent) {
-                    window.addEventListener('deviceorientation', handleOrientation);
-                    isCompassActive = true;
-                    if(qiblaStatus) qiblaStatus.textContent = "কম্পাস সক্রিয় হয়েছে।";
-                } else {
-                    if(qiblaStatus) qiblaStatus.textContent = "দুঃখিত, আপনার ডিভাইসে কম্পাস সাপোর্ট করে না।";
-                }
-                if(qiblaStatus) qiblaStatus.classList.remove('hidden');
-            }
-        });
-
-
-        // --- NAVIGATION ---
-        document.getElementById('nav-times').addEventListener('click', () => {
-            showScreen('main-app-screen');
-            fetchPrayerTimes(); 
-        });
-        document.getElementById('nav-qibla').addEventListener('click', () => {
-            showScreen('qibla-screen');
-        });
-
-        // --- INITIALIZATION ---
-        onAuthStateChanged(auth, async (user) => {
+        onAuthStateChanged(auth, (user) => {
             if (user) {
                 userId = user.uid;
-                showScreen('main-app-screen');
-                fetchPrayerTimes();
+                authScreen.classList.add('hidden');
+                mainAppScreen.classList.remove('hidden');
+                document.getElementById('current-date').textContent = formatDisplayDate(new Date());
+                
+                // Initialize main app features
+                loadPrayerTimes();
+                loadHadith();
+                
+                // Ensure initial screen is 'times'
+                showScreen('times');
             } else {
-                if (initialAuthToken) {
-                    try {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } catch (e) {
-                        try {
-                            await signInAnonymously(auth);
-                        } catch (anonError) {
-                            showScreen('auth');
-                        }
-                    }
-                } else {
-                    try {
-                        await signInAnonymously(auth);
-                    } catch (anonError) {
-                         showScreen('auth');
-                    }
-                }
+                userId = null;
+                authScreen.classList.remove('hidden');
+                mainAppScreen.classList.add('hidden');
             }
         });
-    </script>
+
+    } catch (error) {
+        console.error("Firebase Initialization Error:", error);
+        showMessage("ত্রুটি", "অ্যাপ শুরু করতে সমস্যা হয়েছে।");
+    }
+
+    // --- AUTHENTICATION HANDLERS ---
+    
+    window.toggleAuthMode = () => {
+        const isLogin = loginForm.classList.contains('hidden');
+        if (isLogin) {
+            // Switch to Login
+            loginForm.classList.remove('hidden');
+            signupForm.classList.add('hidden');
+            authToggleBtn.textContent = 'সাইন আপ করতে ক্লিক করুন';
+            document.querySelector('#auth-form-container h1').textContent = 'প্রবেশ করুন';
+        } else {
+            // Switch to Signup
+            loginForm.classList.add('hidden');
+            signupForm.classList.remove('hidden');
+            authToggleBtn.textContent = 'লগইন করতে ক্লিক করুন';
+            document.querySelector('#auth-form-container h1').textContent = 'নতুন একাউন্ট তৈরি করুন';
+        }
+    }
+
+    window.handleLogin = async () => {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            showMessage("সফল", "সফলভাবে লগইন করা হয়েছে।");
+        } catch (error) {
+            console.error("Login Error:", error);
+            showMessage("লগইন ব্যর্থ", "ইমেইল বা পাসওয়ার্ড ভুল হয়েছে।");
+        }
+    };
+
+    window.handleSignup = async () => {
+        const name = document.getElementById('signup-name').value;
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            // Optionally save user name to Firestore, but not critical for this demo.
+            showMessage("সফল", `${name}, আপনার একাউন্ট তৈরি এবং লগইন সফল হয়েছে।`);
+        } catch (error) {
+            console.error("Signup Error:", error);
+            showMessage("সাইন আপ ব্যর্থ", "ইমেইলটি হয়তো আগে ব্যবহার করা হয়েছে অথবা পাসওয়ার্ডটি দুর্বল।");
+        }
+    };
+
+    window.handleLogout = async () => {
+        try {
+            await signOut(auth);
+            // Re-authenticate anonymously for Firestore access
+            await signInAnonymously(auth);
+            showMessage("লগআউট", "আপনি সফলভাবে লগআউট করেছেন।");
+        } catch (error) {
+            console.error("Logout Error:", error);
+        }
+    };
+
+    // --- PRAYER TIME LOGIC ---
+    
+    window.loadPrayerTimes = () => {
+        const todayDocId = formatDate(new Date());
+        const docRef = doc(db, `artifacts/${appId}/public/data/prayer_times`, todayDocId);
+
+        onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                prayerTimesData = docSnap.data();
+                renderPrayerTimes();
+                if (countdownInterval) clearInterval(countdownInterval);
+                countdownInterval = setInterval(updateCurrentPrayer, 1000);
+            } else {
+                prayerTimesData = null;
+                prayerTimesList.innerHTML = `<p class="text-center text-gray-500 py-8">আজকের সময়সূচি এখনো আপলোড করা হয়নি।</p>`;
+                currentPrayerInfo.classList.add('hidden');
+            }
+        }, (error) => {
+            console.error("Error fetching prayer times:", error);
+            showMessage("ডেটা লোড ত্রুটি", "নামাজের সময়সূচি লোড করতে সমস্যা হয়েছে।");
+        });
+    };
+
+    function renderPrayerTimes() {
+        if (!prayerTimesData) return;
+        
+        const now = new Date();
+        let html = '';
+        let nextPrayerIndex = -1;
+
+        for (let i = 0; i < PRAYER_NAMES.length; i++) {
+            const name = PRAYER_NAMES[i];
+            const timeStr = prayerTimesData[name];
+            const prayerTime = parseTime(timeStr);
+            const isHighlighted = (nextPrayerIndex === -1 && prayerTime > now);
+
+            if (isHighlighted) {
+                nextPrayerIndex = i;
+            }
+
+            const cardClass = isHighlighted ? 'highlight-card' : 'bg-white';
+            const textClass = isHighlighted ? 'text-white' : 'text-gray-800';
+
+            html += `
+                <div class="card p-4 flex justify-between items-center ${cardClass}">
+                    <span class="text-lg font-semibold ${textClass}">${BENGALI_NAMES[name]}</span>
+                    <span class="text-xl font-bold ${textClass}">${toBengaliDigits(timeStr)}</span>
+                </div>
+            `;
+        }
+        
+        prayerTimesList.innerHTML = html;
+        updateCurrentPrayer();
+    }
+
+    function updateCurrentPrayer() {
+        if (!prayerTimesData) return;
+        
+        const now = new Date();
+        let nextPrayer = null;
+        let prevPrayer = null;
+        let nextPrayerTime = null;
+        let prevPrayerTime = null;
+        let nextPrayerObj = null;
+
+        // Find the next prayer time
+        for (const name of PRAYER_NAMES) {
+            const time = parseTime(prayerTimesData[name]);
+            if (time > now) {
+                nextPrayer = name;
+                nextPrayerTime = time;
+                break;
+            }
+            prevPrayer = name;
+            prevPrayerTime = time;
+        }
+
+        // Handle case where all prayers are over (Next is Fajr tomorrow)
+        if (!nextPrayer) {
+            // Find Fajr tomorrow
+            nextPrayer = 'fajr';
+            nextPrayerTime = parseTime(prayerTimesData.fajr);
+            nextPrayerTime.setDate(nextPrayerTime.getDate() + 1); 
+            
+            // Set previous to Isha today
+            prevPrayer = 'isha';
+            prevPrayerTime = parseTime(prayerTimesData.isha);
+            // This is the period after Isha and before Fajr next day
+        }
+        
+        nextPrayerObj = { name: nextPrayer, time: nextPrayerTime };
+        
+        // Calculate countdown
+        const diffInSeconds = Math.floor((nextPrayerTime.getTime() - now.getTime()) / 1000);
+        const hours = Math.floor(diffInSeconds / 3600);
+        const minutes = Math.floor((diffInSeconds % 3600) / 60);
+        const seconds = diffInSeconds % 60;
+
+        countdownTimerEl.textContent = `${toBengaliDigits(hours)}:${toBengaliDigits(String(minutes).padStart(2, '0'))}:${toBengaliDigits(String(seconds).padStart(2, '0'))}`;
+        nextPrayerNameEl.textContent = BENGALI_NAMES[nextPrayer];
+        currentPrayerInfo.classList.remove('hidden');
+
+        // Calculate progress bar
+        let totalDuration = 0;
+        let elapsedDuration = 0;
+
+        if (prevPrayerTime && nextPrayerTime) {
+            // We need to handle the time transition between Isha and Fajr (midnight crossing)
+            if (nextPrayer === 'fajr' && prevPrayer === 'isha') {
+                // Time period is from Isha today to Fajr tomorrow
+                const endOfDay = new Date(prevPrayerTime);
+                endOfDay.setHours(23, 59, 59, 999);
+                
+                totalDuration = (nextPrayerTime.getTime() - prevPrayerTime.getTime());
+                elapsedDuration = (now.getTime() - prevPrayerTime.getTime());
+
+            } else {
+                 // Standard prayer transition within the day
+                totalDuration = nextPrayerTime.getTime() - prevPrayerTime.getTime();
+                elapsedDuration = now.getTime() - prevPrayerTime.getTime();
+            }
+        }
+        
+        const progressPercent = Math.min(100, (elapsedDuration / totalDuration) * 100);
+        progressFillEl.style.width = `${progressPercent}%`;
+
+        // Update card highlighting dynamically
+        const cards = prayerTimesList.querySelectorAll('.card');
+        cards.forEach((card, index) => {
+            const cardName = PRAYER_NAMES[index];
+            const isNext = cardName === nextPrayer;
+
+            if (isNext) {
+                card.classList.add('highlight-card');
+                card.classList.remove('bg-white', 'text-gray-800');
+            } else {
+                card.classList.remove('highlight-card');
+                card.classList.add('bg-white', 'text-gray-800');
+            }
+        });
+    }
+
+    // --- QIBLA LOGIC (CRITICAL FIX: Permission on button click) ---
+
+    let qiblaRunning = false;
+    
+    window.initQibla = () => {
+        if (qiblaRunning) return;
+
+        // Step 1: Request sensor permission (iOS 13+ requirement)
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(permissionState => {
+                    if (permissionState === 'granted') {
+                        setupQiblaListener();
+                    } else {
+                        handleQiblaError("পারমিশন দেওয়া হয়নি।");
+                    }
+                })
+                .catch(error => {
+                    console.error("Permission request failed:", error);
+                    handleQiblaError("কম্পাস পারমিশন পেতে সমস্যা হয়েছে।");
+                });
+        } else {
+            // Step 2: For Android/Other browsers, just add the listener
+            setupQiblaListener();
+        }
+    };
+    
+    function setupQiblaListener() {
+        if (qiblaRunning) return;
+        qiblaRunning = true;
+        
+        qiblaInitBtn.classList.add('hidden');
+        qiblaMessage.classList.add('hidden');
+        qiblaNeedle.style.display = 'block';
+
+        window.addEventListener('deviceorientation', handleOrientation);
+        qiblaMessage.textContent = "কম্পাস চলছে...";
+        showMessage("সফল", "কিবলা কম্পাস চালু হয়েছে। ডিভাইসটি সমতল করে ধরুন।");
+    }
+
+    function handleQiblaError(message) {
+        qiblaRunning = false;
+        qiblaInitBtn.classList.add('hidden');
+        qiblaNeedle.style.display = 'none';
+        qiblaMessage.classList.remove('hidden');
+        qiblaMessage.textContent = `দুঃখিত, আপনার ডিভাইসে কম্পাস সাপোর্ট করে না অথবা পারমিশন দেওয়া হয়নি। (${message})`;
+        orientationInfoEl.textContent = "";
+        showMessage("কম্পাস ত্রুটি", qiblaMessage.textContent);
+    }
+    
+    function handleOrientation(event) {
+        let alpha;
+
+        // Use webkitCompassHeading for iOS, which provides the true North heading
+        if (event.webkitCompassHeading !== undefined) {
+            alpha = event.webkitCompassHeading;
+        } else if (event.alpha !== null) {
+            // Standard alpha (rotation around Z-axis, usually relative to device frame)
+            // This works for Android/other browsers, but may require calibration/beta/gamma for true heading
+            alpha = event.alpha;
+        } else {
+            // Fallback for devices that do not provide orientation data
+            handleQiblaError("ডিভাইস অরিয়েন্টেশন ডেটা পাওয়া যায়নি।");
+            window.removeEventListener('deviceorientation', handleOrientation);
+            return;
+        }
+        
+        // Calculate the rotation needed for the needle:
+        // Needle points North (0 degrees). We want it to point Qibla.
+        // Rotation = Qibla Bearing - Current Heading
+        // Rotation = Qibla Bearing - Alpha
+        const rotation = QIBLA_BEARING - alpha;
+
+        qiblaNeedle.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+        
+        // Display current device heading (for user debugging/info)
+        orientationInfoEl.textContent = `আপনার ডিভাইস হেডিং: ${toBengaliDigits(Math.round(alpha))}°`;
+    }
+
+    // --- HADITH LOGIC ---
+    
+    window.loadHadith = () => {
+        const docRef = doc(db, `artifacts/${appId}/public/data/hadith`, 'latest_hadith');
+        
+        onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists() && docSnap.data().text) {
+                hadithTextEl.textContent = docSnap.data().text;
+                ttsBtn.classList.remove('hidden');
+            } else {
+                hadithTextEl.textContent = 'আজকের জন্য কোনো হাদীস আপলোড করা হয়নি।';
+                ttsBtn.classList.add('hidden');
+                ttsAudio.classList.add('hidden');
+            }
+        }, (error) => {
+            console.error("Error fetching hadith:", error);
+            hadithTextEl.textContent = 'হাদীস লোড করতে সমস্যা হয়েছে।';
+        });
+    };
+    
+    // --- TEXT-TO-SPEECH (TTS) LOGIC ---
+    
+    // Utility function to convert base64 to ArrayBuffer
+    function base64ToArrayBuffer(base64) {
+        const binaryString = atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    // Utility function to convert PCM data to WAV Blob
+    function pcmToWav(pcm16, sampleRate) {
+        const numChannels = 1;
+        const bitsPerSample = 16;
+        const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+        const blockAlign = numChannels * (bitsPerSample / 8);
+        const dataSize = pcm16.length * 2;
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+
+        // RIFF header
+        view.setUint32(0, 0x52494646, false); // "RIFF"
+        view.setUint32(4, 36 + dataSize, true); // file length - 8
+        view.setUint32(8, 0x57415645, false); // "WAVE"
+
+        // FMT sub-chunk
+        view.setUint32(12, 0x666d7420, false); // "fmt "
+        view.setUint32(16, 16, true); // sub-chunk size (16 for PCM)
+        view.setUint16(20, 1, true); // audio format (1 for PCM)
+        view.setUint16(22, numChannels, true); // number of channels
+        view.setUint32(24, sampleRate, true); // sample rate
+        view.setUint32(28, byteRate, true); // byte rate
+        view.setUint16(32, blockAlign, true); // block align
+        view.setUint16(34, bitsPerSample, true); // bits per sample
+
+        // DATA sub-chunk
+        view.setUint32(36, 0x64617461, false); // "data"
+        view.setUint32(40, dataSize, true); // data size
+
+        // PCM data
+        let offset = 44;
+        for (let i = 0; i < pcm16.length; i++) {
+            view.setInt16(offset, pcm16[i], true);
+            offset += 2;
+        }
+
+        return new Blob([buffer], { type: 'audio/wav' });
+    }
+    
+    async function fetchWithBackoff(url, options, maxRetries = 5) {
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const response = await fetch(url, options);
+                // Check for rate limiting (429) or temporary server errors (5xx)
+                if ((response.status === 429 || response.status >= 500) && i < maxRetries - 1) {
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+                // For non-retryable errors (like 400 Bad Request or 403 Forbidden), break the loop
+                if (!response.ok) {
+                    // Do not throw here. Return the response object and let the caller handle the JSON body.
+                    return response; 
+                }
+                return response;
+            } catch (error) {
+                if (i === maxRetries - 1) throw error;
+            }
+        }
+        // Should not be reached, but as a fallback:
+        throw new Error("Maximum retries reached without successful fetch.");
+    }
+
+    window.generateAndPlayTTS = async () => {
+        const textToSpeak = hadithTextEl.textContent;
+        
+        // **FIX 1: Basic text validation**
+        if (!textToSpeak || textToSpeak.includes('লোড হচ্ছে') || textToSpeak.includes('আপলোড করা হয়নি') || textToSpeak.trim().length < 5) {
+            showMessage("অডিও ত্রুটি", "অডিও তৈরি করার জন্য পর্যাপ্ত হাদীস টেক্সট নেই।");
+            return;
+        }
+
+        ttsBtn.disabled = true;
+        ttsLoading.classList.remove('hidden');
+        ttsAudio.classList.add('hidden');
+
+        let response;
+        let result = {};
+
+        try {
+            const systemPrompt = "Read this text in a clear, measured, and informative tone.";
+            const payload = {
+                contents: [{ parts: [{ text: textToSpeak }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: "Kore" } // Using Kore voice (Firm)
+                        }
+                    }
+                },
+            };
+            
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+            response = await fetchWithBackoff(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            // **FIX 2: Always read the response JSON body**
+            result = await response.json();
+            
+            if (!response.ok) {
+                // If HTTP status is not 200, it's an API error
+                if (result.error && result.error.message) {
+                    throw new Error(`API Error: ${result.error.message}`);
+                } else {
+                    throw new Error(`HTTP Status Error: ${response.status}`);
+                }
+            }
+
+            // --- Successful Response Processing ---
+            const part = result?.candidates?.[0]?.content?.parts?.[0];
+            const audioData = part?.inlineData?.data;
+            const mimeType = part?.inlineData?.mimeType;
+
+            if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 16000;
+                
+                const pcmData = base64ToArrayBuffer(audioData);
+                const pcm16 = new Int16Array(pcmData);
+                const wavBlob = pcmToWav(pcm16, sampleRate);
+                
+                const audioUrl = URL.createObjectURL(wavBlob);
+                ttsAudio.src = audioUrl;
+                ttsAudio.classList.remove('hidden');
+                ttsAudio.play();
+                showMessage("অডিও সফল", "হাদীসটি নিচে প্লেয়ারে শুনুন।");
+            } else {
+                showMessage("অডিও তৈরি ব্যর্থ", "API থেকে অডিও ডেটা পাওয়া যায়নি বা ডেটা স্ট্রাকচার ভুল।");
+            }
+
+        } catch (error) {
+            console.error("TTS API Error:", error);
+            // **FIX 3: Show detailed error message**
+            let errorMessage = "অডিও তৈরি করার সময় একটি সমস্যা হয়েছে।";
+            if (error.message) {
+                 errorMessage = error.message.includes("API Error:") 
+                    ? error.message.replace("API Error: ", "জেমিনি ত্রুটি: ")
+                    : `সাধারণ নেটওয়ার্ক/কোড ত্রুটি: ${error.message}`;
+            }
+            showMessage("API ত্রুটি", errorMessage);
+        } finally {
+            ttsBtn.disabled = false;
+            ttsLoading.classList.add('hidden');
+        }
+    };
+
+
+    // --- SCREEN MANAGEMENT ---
+    
+    window.showScreen = (screenName) => {
+        // Hide all screens
+        document.querySelectorAll('#screen-content > div').forEach(screen => {
+            screen.classList.add('hidden');
+        });
+
+        // Remove active class from all nav buttons
+        document.querySelectorAll('.nav-button').forEach(btn => {
+            btn.classList.remove('active');
+            btn.classList.add('text-gray-500');
+        });
+
+        let targetScreen;
+        let targetNavButton;
+
+        if (screenName === 'times') {
+            targetScreen = document.getElementById('times-screen');
+            targetNavButton = document.querySelector('[onclick="showScreen(\'times\')"]');
+        } else if (screenName === 'qibla') {
+            targetScreen = document.getElementById('qibla-screen');
+            targetNavButton = document.querySelector('[onclick="showScreen(\'qibla\')"]');
+            // Stop Qibla listener when leaving the Qibla screen
+            if (qiblaRunning) {
+                window.removeEventListener('deviceorientation', handleOrientation);
+                qiblaRunning = false;
+            }
+        } else if (screenName === 'hadith') {
+            targetScreen = document.getElementById('hadith-screen');
+            targetNavButton = document.querySelector('[onclick="showScreen(\'hadith\')"]');
+        }
+
+        if (targetScreen) {
+            targetScreen.classList.remove('hidden');
+        }
+        if (targetNavButton) {
+            targetNavButton.classList.add('active');
+            targetNavButton.classList.remove('text-gray-500');
+        }
+    };
+
+    // Initial check (done in onAuthStateChanged)
+
+</script>
+
 </body>
 </html>
